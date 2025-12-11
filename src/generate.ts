@@ -29,15 +29,40 @@ const pluginLogPrefix = '[papersaurus] ';
 
 // Get version for a specific document based on git commit count
 function getDocumentVersion(sourcePath: string): string {
+  if (!sourcePath) {
+    return '1.0.0';
+  }
   try {
+    // sourcePath from Docusaurus is like "@site/docs/intro.md" - extract relative path
+    let relativePath = sourcePath;
+    if (sourcePath.includes('@site/')) {
+      relativePath = sourcePath.replace('@site/', '');
+    }
+
+    // Use cross-platform compatible command
+    // git rev-list --count HEAD -- <file> works on both Windows and Unix
     const commitCount = execSync(
-      `git log --follow --oneline -- "${sourcePath}" 2>/dev/null | wc -l`,
-      { encoding: 'utf-8', cwd: process.cwd() }
+      `git rev-list --count HEAD -- "${relativePath}"`,
+      { encoding: 'utf-8', cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'] }
     ).trim();
     const count = parseInt(commitCount, 10) || 0;
+    console.log(`${pluginLogPrefix}Version for ${relativePath}: 1.0.${count} (${count} commits)`);
     return `1.0.${count}`;
-  } catch {
-    return '1.0.0';
+  } catch (e) {
+    // Fallback: try without path tracking
+    try {
+      const relativePath = sourcePath.replace('@site/', '');
+      const result = execSync(
+        `git log --oneline -- "${relativePath}"`,
+        { encoding: 'utf-8', cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'] }
+      ).trim();
+      const count = result ? result.split('\n').length : 0;
+      console.log(`${pluginLogPrefix}Version for ${relativePath}: 1.0.${count} (${count} commits)`);
+      return `1.0.${count}`;
+    } catch {
+      console.log(`${pluginLogPrefix}Could not get version for ${sourcePath}`);
+      return '1.0.0';
+    }
   }
 }
 
