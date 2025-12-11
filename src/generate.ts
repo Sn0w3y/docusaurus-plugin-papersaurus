@@ -224,7 +224,7 @@ export async function generatePdfFiles(
           label: rootCategory.label,
           file: rootCategory.pdfFilename,
           type: 'root'
-        }])
+        }], pluginOptions.ignoreDocs)
       }
       else {
         console.log(`${pluginLogPrefix}Sidebar '${sidebarName}' doesn't exist in version '${versionInfo.label}', continue without it...`);
@@ -250,10 +250,19 @@ function stripTrailingSlash (str: string) {
 function saveUrlToFileMappingsRecursive(
   sideBarItems: any[],
   output: { [key: string]: { label: string, file: string, type: 'root' | 'section' | 'chapter' }[] },
-  parents: { label: string, file: string, type: 'root' | 'section' | 'chapter' }[] = []) {
+  parents: { label: string, file: string, type: 'root' | 'section' | 'chapter' }[] = [],
+  ignoreDocs: string[] = []) {
 
   for (const item of sideBarItems) {
-    if (item.permalink) {
+    // Check if this doc should be ignored
+    const docId = item.unversionedId || item.id || '';
+    const isIgnored = ignoreDocs.some((ignore: string) =>
+      docId === ignore ||
+      item.id === ignore ||
+      (item.id && item.id.endsWith('/' + ignore))
+    );
+
+    if (item.permalink && !isIgnored) {
       output[stripTrailingSlash(item.permalink)] = [...parents, {
         label: item.label,
         file: item.pdfFilename,
@@ -266,7 +275,7 @@ function saveUrlToFileMappingsRecursive(
         label: item.label,
         file: item.pdfFilename,
         type: 'section'
-      }]);
+      }], ignoreDocs);
     }
   }
 };
@@ -450,7 +459,15 @@ async function createPdfFilesRecursive(sideBarItem: any,
     case 'doc': {
       // Skip ignored docs completely (no PDF generation)
       const docId = sideBarItem.unversionedId || sideBarItem.id || '';
-      if (pluginOptions.ignoreDocs && pluginOptions.ignoreDocs.includes(docId)) {
+      const fullId = sideBarItem.id || '';
+      // Check both short id and full id against ignoreDocs
+      const shouldIgnore = pluginOptions.ignoreDocs && (
+        pluginOptions.ignoreDocs.includes(docId) ||
+        pluginOptions.ignoreDocs.includes(fullId) ||
+        pluginOptions.ignoreDocs.some((ignore: string) => fullId.endsWith('/' + ignore) || fullId === ignore || docId === ignore)
+      );
+      console.log(`${pluginLogPrefix}Doc check: id=${fullId}, unversionedId=${docId}, ignored=${shouldIgnore}`);
+      if (shouldIgnore) {
         console.log(`${pluginLogPrefix}Skipping ignored doc: ${docId}`);
         break;
       }
