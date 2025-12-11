@@ -448,6 +448,12 @@ async function createPdfFilesRecursive(sideBarItem: any,
       break;
     }
     case 'doc': {
+      // Skip ignored docs completely (no PDF generation)
+      const docId = sideBarItem.unversionedId || sideBarItem.id || '';
+      if (pluginOptions.ignoreDocs && pluginOptions.ignoreDocs.includes(docId)) {
+        console.log(`${pluginLogPrefix}Skipping ignored doc: ${docId}`);
+        break;
+      }
       articles.push(sideBarItem);
       break;
     }
