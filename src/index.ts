@@ -5,20 +5,10 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {LoadContext, Plugin, DocusaurusConfig} from '@docusaurus/types';
+import {LoadContext, Plugin} from '@docusaurus/types';
 import {generatePdfFiles} from './generate';
 import {PluginOptions, PapersaurusPluginOptions} from './types';
 import {processOptions} from './validateOptions';
-import importFresh from 'import-fresh';
-import * as fs from "fs";
-
-function loadConfig(configPath: string): DocusaurusConfig {
-  if (!fs.existsSync(configPath)) {
-    throw new Error(`Config file "${configPath}" not found`);
-  }
-  const loadedConfig = importFresh(configPath) as DocusaurusConfig;
-  return loadedConfig
-}
 
 export default function (
   _context: LoadContext,
@@ -37,8 +27,8 @@ export default function (
         return {};
       }
 
-      const CWD = process.cwd();
-      const siteConfig = loadConfig(`${CWD}/docusaurus.config.js`);
+      // Use siteConfig from context - works with both .ts and .js config files
+      const siteConfig = _context.siteConfig;
 
       return {
         headTags: [`
@@ -49,27 +39,27 @@ export default function (
           const getBaseUrl = function (href) {
             return '${siteConfig.baseUrl}${siteConfig.baseUrl?.endsWith("/") ? "" : "/"}';
           };
-          
+
           const getDownloadItems = function () {
-          
+
             const stripTrailingSlash = (str) => {
               return str.endsWith('/') ?
                 str.slice(0, -1) : str;
             };
-          
+
             var downloadItems = [];
             var activePdfData = pdfData[stripTrailingSlash(document.location.pathname)] || [];
-          
+
             for (var i = 0, il = activePdfData.length; i < il; i++) {
               if (activePdfData[i].type === 'root') {
-          
+
                 downloadItems.push({
                   title: 'Download complete version: <br/> <strong style=font-size:16px>' + activePdfData[i].label + '</strong>',
                   path: getBaseUrl() + activePdfData[i].file
                 });
                 continue;
               }
-          
+
               if (activePdfData[i].type === 'section') {
                 downloadItems.push({
                   title: 'Download section: <br/> <strong style=font-size:16px>' + activePdfData[i].label + '</strong>',
@@ -77,7 +67,7 @@ export default function (
                 });
                 continue;
               }
-          
+
               if (activePdfData[i].type === 'chapter') {
                 downloadItems.push({
                   title: 'Download page: <br/> <strong style=font-size:16px>' + activePdfData[i].label + '</strong>',
@@ -85,15 +75,15 @@ export default function (
                 });
               }
             }
-          
+
             return downloadItems;
           };
-          
+
           const fillDownloadDropdownMenu = function () {
             $('#pdfDownloadMenuList').empty();
-          
+
             const downloadItems = getDownloadItems();
-          
+
             var printPopupContent = '';
             downloadItems.forEach(function (downloadItem) {
               printPopupContent += '<li>';
@@ -103,15 +93,15 @@ export default function (
             if (printPopupContent.length === 0) {
               printPopupContent = '<li>No PDF downloads on this page</li>';
             }
-          
+
             $("#pdfDownloadMenuList").append(printPopupContent);
           };
-          
+
           const fillDownloadSidebarMenu = function () {
             $('#pdfLinkSidebarMenu').empty();
-          
+
             const downloadItems = getDownloadItems();
-          
+
             var printMenuContent = '';
             downloadItems.forEach(function (downloadItem) {
               printMenuContent += '<li class="menu__list-item">';
@@ -123,7 +113,7 @@ export default function (
             }
             $('#pdfLinkSidebarMenu').append(printMenuContent);
           };
-          
+
           const checkAndInsertPdfButtons = function () {
             if (!$("html").hasClass("plugin-docs")) {
               return;
@@ -135,10 +125,10 @@ export default function (
                 '  <ul class="dropdown__menu" id="pdfDownloadMenuList"></ul>' +
                 '</div>');
               $(".navbar__items--right").prepend(pdfDownloadButton);
-          
+
               $("#pdfDownloadMenu").mouseenter(fillDownloadDropdownMenu);
             }
-          
+
             if (!$("#pdfLinkSidebar").length) {
               var pdfDownoadButtonSidebar = $('<li class="menu__list-item menu__list-item--collapsed" id="pdfLinkSidebar"><a role="button" class="menu__link menu__link--sublist">${pluginOptions.downloadButtonText}</a><ul class="menu__list" id="pdfLinkSidebarMenu" style=""></ul></li>');
               $('.navbar-sidebar__items > .menu > .menu__list').append(pdfDownoadButtonSidebar);
@@ -148,7 +138,7 @@ export default function (
               $('.navbar__toggle').click(fillDownloadSidebarMenu);
             }
           };
-          
+
           $(window).on('load', function () {
             fetch(getBaseUrl() + 'pdfs.json')
               .then((response) => response.json())
